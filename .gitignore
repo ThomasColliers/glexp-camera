@@ -1,0 +1,13 @@
+berkelium
+chrome.pak
+build/
+installed-chromium
+locales
+resources
+resources.pak
+camera
+*.tga
+*.swp
+*.swo
+models/
+textures/
