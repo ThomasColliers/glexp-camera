@@ -5,6 +5,7 @@
 #include <boost/filesystem.hpp>
 #include <GL/glew.h>
 #include <GL/glfw.h>
+#include <vector>
 
 #include "ShaderManager.h"
 #include "TriangleBatch.h"
@@ -16,9 +17,11 @@
 #include "Math3D.h"
 #include "UniformManager.h"
 #include "TextureManager.h"
+#include "ModelLoader.h"
 
 using namespace gliby;
 using namespace Math3D;
+using namespace std;
 
 int window_w, window_h;
 // shader stuff
@@ -31,11 +34,16 @@ TransformPipeline transformPipeline;
 MatrixStack modelViewMatrix;
 MatrixStack projectionMatrix;
 // objects
-Geometry* scene;
+vector<Model*>* scene;
 // texture
 TextureManager textureManager;
 // uniform locations
 UniformManager* uniformManager;
+
+// TODO: Automatically generate the normals for scene objects that have none
+// TODO: Get a good scene angle
+// TODO: Figure out a way to load the correct textures for the correct objects
+// TODO: Take over material properties from mtl file?
 
 void setupContext(void){
     // general state
@@ -48,13 +56,9 @@ void setupContext(void){
 
     // transform pipeline
     transformPipeline.setMatrixStacks(modelViewMatrix,projectionMatrix);
-    viewFrustum.setPerspective(35.0f, float(window_w)/float(window_h), 1.0f, 500.0f);
+    viewFrustum.setPerspective(35.0f, float(window_w)/float(window_h), 1.0f, 20000.0f);
     projectionMatrix.loadMatrix(viewFrustum.getProjectionMatrix());
     modelViewMatrix.loadIdentity();
-    // move camera back
-    cameraFrame.setOrigin(0.0f,5.0f,20.0f);
-    cameraFrame.lookAt(0.0f,0.0f,0.0f);
-    //cameraFrame.moveForward(-20.0f);
 
     // shader setup
     const char* searchPath[] = {"./shaders/","/home/ego/projects/personal/gliby/shaders/"};
@@ -65,19 +69,46 @@ void setupContext(void){
     uniformManager = new UniformManager(diffuseShader,sizeof(uniforms)/sizeof(char*),uniforms);
 
     // setup geometry
+    ModelLoader modelLoader;
+    scene = modelLoader.loadAll("models/sponza.obj");
+
     // setup textures
+    const char* textures[] = {"textures/spnza_bricks_a_diff.tga"};
+    textureManager.loadTextures(sizeof(textures)/sizeof(char*),textures,GL_TEXTURE_2D,GL_TEXTURE0);
 }
 
 void render(void){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // setup camera
+    static int pos = 0.0f;
+    pos++;
+    cameraFrame.setOrigin(pos,1000.0f,0.0f);
+    cameraFrame.lookAt(0.0f,0.0f,0.0f);
     Matrix44f mCamera;
     cameraFrame.getCameraMatrix(mCamera);
     modelViewMatrix.pushMatrix();
     modelViewMatrix.multMatrix(mCamera);
 
     // render scene
+    glUseProgram(diffuseShader);
+    glBindTexture(GL_TEXTURE_2D, textureManager.get("textures/spnza_bricks_a_diff.tga"));
+    glUniformMatrix4fv(uniformManager->get("mvpMatrix"),1,GL_FALSE,transformPipeline.getModelViewProjectionMatrix());
+    glUniformMatrix4fv(uniformManager->get("mvMatrix"),1,GL_FALSE,transformPipeline.getModelViewMatrix());
+    glUniformMatrix4fv(uniformManager->get("normalMatrix"),1,GL_FALSE,transformPipeline.getNormalMatrix());
+    GLfloat lightPosition[] = {2.0f,2.0f,2.0f};
+    glUniform3fv(uniformManager->get("lightPosition"),1,lightPosition);
+    GLfloat ambientColor[] = {0.2f, 0.2f, 0.2f, 1.0f};
+    glUniform4fv(uniformManager->get("ambientColor"),1,ambientColor);
+    GLfloat diffuseColor[] = {0.7f, 0.7f, 0.7f, 1.0f};
+    glUniform4fv(uniformManager->get("diffuseColor"),1,diffuseColor);
+    GLfloat specularColor[] = {0.8f, 0.8f, 0.8f, 1.0f};
+    glUniform4fv(uniformManager->get("specularColor"),1,specularColor);
+    glUniform1f(uniformManager->get("shinyness"),128.0f);
+    glUniform1i(uniformManager->get("textureUnit"),0);
+    for(vector<Model*>::iterator it = scene->begin(); it != scene->end(); ++it) {
+        (*it)->draw();
+    }
 
     modelViewMatrix.popMatrix();
 }
@@ -92,7 +123,7 @@ void resizeCallback(int width, int height){
     window_w = width;
     window_h = height;
     glViewport(0,0,window_w,window_h);
-    viewFrustum.setPerspective(35.0f, float(window_w)/float(window_h),1.0f,500.0f);
+    viewFrustum.setPerspective(35.0f, float(window_w)/float(window_h),1.0f,20000.0f);
     projectionMatrix.loadMatrix(viewFrustum.getProjectionMatrix());
 }
 
