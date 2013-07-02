@@ -40,7 +40,6 @@ TextureManager textureManager;
 // uniform locations
 UniformManager* uniformManager;
 
-// TODO: Automatically generate the normals for scene objects that have none
 // TODO: Get a good scene angle
 // TODO: Figure out a way to load the correct textures for the correct objects
 // TODO: Take over material properties from mtl file?
@@ -81,9 +80,9 @@ void render(void){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // setup camera
-    static int pos = 0.0f;
-    pos++;
-    cameraFrame.setOrigin(pos,1000.0f,0.0f);
+    static float pos = 0.0f;
+    pos += 1.0f;
+    cameraFrame.setOrigin(pos,800.0f,0.0f);
     cameraFrame.lookAt(0.0f,0.0f,0.0f);
     Matrix44f mCamera;
     cameraFrame.getCameraMatrix(mCamera);
@@ -95,7 +94,7 @@ void render(void){
     glBindTexture(GL_TEXTURE_2D, textureManager.get("textures/spnza_bricks_a_diff.tga"));
     glUniformMatrix4fv(uniformManager->get("mvpMatrix"),1,GL_FALSE,transformPipeline.getModelViewProjectionMatrix());
     glUniformMatrix4fv(uniformManager->get("mvMatrix"),1,GL_FALSE,transformPipeline.getModelViewMatrix());
-    glUniformMatrix4fv(uniformManager->get("normalMatrix"),1,GL_FALSE,transformPipeline.getNormalMatrix());
+    glUniformMatrix3fv(uniformManager->get("normalMatrix"),1,GL_FALSE,transformPipeline.getNormalMatrix());
     GLfloat lightPosition[] = {2.0f,2.0f,2.0f};
     glUniform3fv(uniformManager->get("lightPosition"),1,lightPosition);
     GLfloat ambientColor[] = {0.2f, 0.2f, 0.2f, 1.0f};
