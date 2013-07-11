@@ -37,13 +37,20 @@ MatrixStack modelViewMatrix;
 MatrixStack projectionMatrix;
 // objects
 vector<Model*>* scene;
+// movement coordinates
+float cameraHeight = 605.0f;
+Vector3f coordinates[] = {
+    {-1181.0f,cameraHeight,32.84f},
+    {-1159.0f,cameraHeight,-394.22f},
+    {1086.0f,cameraHeight,-407.35f},
+    {1073.0f,cameraHeight,446.36f},
+    {-1159.0f,cameraHeight,406.95f},
+};
 // texture
 TextureManager textureManager;
 // uniform locations
 UniformManager* uniformManager;
 
-// TODO: Define points to traverse within the scene
-// TODO: Do catmull rom spline interpolation over those points
 // TODO: Make camera orientation follow the traversed path
 // TODO: Add free camera mode
 // TODO: Check other camera usage modes in class I found online
@@ -86,16 +93,32 @@ void setupContext(void){
 void render(void){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-    // -1181.0416 32.8450 618.5162
-    // -1159.2646 -394.2226 605.7687
-    // 1086.6760 -407.3567 605.7686
-    // 1073.5419 446.3634 605.7686
-    // -1159.2645 406.9609 605.7687
-
     // setup camera
-    static float pos = 0.0f;
-    pos += 1.0f;
-    cameraFrame.setOrigin(-1181.0416,605.0f,32.8450f);
+    double t = fmod(glfwGetTime(),10.0d)/10.0d;
+    int numsegments = sizeof(coordinates) / sizeof(Vector3f);
+    // find out which segment we are on the spline
+    int segment = numsegments * t;
+    // calculate the time on this segment
+    float perseg = 1.0f/numsegments;
+    double lt = (t-(segment*perseg))/perseg;
+    // determine the array indexes, loop them around (shouldn't I be using mod for this too?)
+    int indexes[] = {segment-1,segment,segment+1,segment+2};
+    for(int i = 0; i < 4; i++){
+        if(indexes[i] < 0){
+            indexes[i] = numsegments+indexes[i];
+        }else if(indexes[i] > numsegments-1){
+            indexes[i] = abs(numsegments-indexes[i]);
+        }
+    }
+    Vector3f output;
+    //std::cout << output[0] << " " << output[1] << " " << output[2] << " " << output[3] << std::endl;
+    catmullRom(output, coordinates[indexes[0]], coordinates[indexes[1]], coordinates[indexes[2]], coordinates[indexes[3]], lt);
+    cameraFrame.setOrigin(output[0],output[1],output[2]);
+
+    //cameraFrame.setOrigin(-1181.0416,605.0f,32.8450f);
+
+
+    // setup matrix
     cameraFrame.lookAt(0.0f,300.0f,0.0f);
     Matrix44f mCamera;
     cameraFrame.getCameraMatrix(mCamera);
