@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <boost/filesystem.hpp>
 #include <GL/glew.h>
-#include <GL/glfw.h>
+#include <GLFW/glfw3.h>
 #include <vector>
 
 #include "ShaderManager.h"
@@ -23,6 +23,8 @@ using namespace gliby;
 using namespace Math3D;
 using namespace std;
 
+// window
+GLFWwindow* window;
 int window_w, window_h;
 // shader stuff
 ShaderManager* shaderManager;
@@ -40,7 +42,12 @@ TextureManager textureManager;
 // uniform locations
 UniformManager* uniformManager;
 
-// TODO: Get a good scene angle
+// TODO: Define points to traverse within the scene
+// TODO: Do catmull rom spline interpolation over those points
+// TODO: Make camera orientation follow the traversed path
+// TODO: Add free camera mode
+// TODO: Check other camera usage modes in class I found online
+
 // TODO: Figure out a way to load the correct textures for the correct objects
 // TODO: Take over material properties from mtl file?
 
@@ -79,11 +86,17 @@ void setupContext(void){
 void render(void){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+    // -1181.0416 32.8450 618.5162
+    // -1159.2646 -394.2226 605.7687
+    // 1086.6760 -407.3567 605.7686
+    // 1073.5419 446.3634 605.7686
+    // -1159.2645 406.9609 605.7687
+
     // setup camera
     static float pos = 0.0f;
     pos += 1.0f;
-    cameraFrame.setOrigin(pos,800.0f,0.0f);
-    cameraFrame.lookAt(0.0f,0.0f,0.0f);
+    cameraFrame.setOrigin(-1181.0416,605.0f,32.8450f);
+    cameraFrame.lookAt(0.0f,300.0f,0.0f);
     Matrix44f mCamera;
     cameraFrame.getCameraMatrix(mCamera);
     modelViewMatrix.pushMatrix();
@@ -112,17 +125,17 @@ void render(void){
     modelViewMatrix.popMatrix();
 }
 
-void keyCallback(int id, int state){
-    if(id == GLFW_KEY_ESC && state == GLFW_RELEASE){
-        glfwCloseWindow();
+void keyCallback(GLFWwindow* window, int key, int scancode, int state, int mods){
+    if(key == GLFW_KEY_ESCAPE && state == GLFW_RELEASE){
+        glfwSetWindowShouldClose(window, true);
     }
 }
 
-void resizeCallback(int width, int height){
+void resizeCallback(GLFWwindow* window, int width, int height){
     window_w = width;
     window_h = height;
     glViewport(0,0,window_w,window_h);
-    viewFrustum.setPerspective(35.0f, float(window_w)/float(window_h),1.0f,20000.0f);
+    viewFrustum.setPerspective(45.0f, float(window_w)/float(window_h),0.1f,20000.0f);
     projectionMatrix.loadMatrix(viewFrustum.getProjectionMatrix());
 }
 
@@ -130,25 +143,35 @@ int main(int argc, char **argv){
     // force vsync on
     putenv((char*) "__GL_SYNC_TO_VBLANK=1");
 
-    // init glfw and window
+    // init glfw
     if(!glfwInit()){
         std::cerr << "GLFW init failed" << std::endl;
         return -1;
     }
+
+    // swap interval
     glfwSwapInterval(1);
-    glfwOpenWindowHint(GLFW_FSAA_SAMPLES, 8);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    if(!glfwOpenWindow(800,600,8,8,8,0,24,0,GLFW_WINDOW)){
-        std::cerr << "GLFW window opening failed" << std::endl;
+    // set window open hints
+    glfwWindowHint(GLFW_SAMPLES, 8);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    // create glfw window
+    window = glfwCreateWindow(800,600,"gltest",NULL,NULL);
+    window_w = 800; window_h = 600;
+    if(!window){
+        std::cerr << "GLFW window creation failed" << std::endl;
+        glfwTerminate();
         return -1;
     }
-    window_w = 800; window_h = 600;
-    glfwSetKeyCallback(keyCallback);
-    glfwSetWindowSizeCallback(resizeCallback);
-    glfwSetWindowTitle("gltest");
+    // make the window's context current
+    glfwMakeContextCurrent(window);
+
+    // event handlers
+    glfwSetKeyCallback(window,keyCallback);
+    glfwSetWindowSizeCallback(window,resizeCallback);
 
     // init glew
     glewExperimental = GL_TRUE;
@@ -161,10 +184,12 @@ int main(int argc, char **argv){
     setupContext();
 
     // main loop
-    while(glfwGetWindowParam(GLFW_OPENED)){
+    while(!glfwWindowShouldClose(window)){
         render();
-        glfwSwapBuffers();
+        glfwSwapBuffers(window);
+        glfwPollEvents();
     }
 
+    glfwDestroyWindow(window);
     glfwTerminate();
 }
