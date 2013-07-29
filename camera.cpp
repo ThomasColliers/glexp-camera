@@ -46,14 +46,16 @@ Vector3f coordinates[] = {
     {1073.0f,cameraHeight,446.36f},
     {-1159.0f,cameraHeight,406.95f},
 };
+Vector3f previousPosition;
 // texture
 TextureManager textureManager;
 // uniform locations
 UniformManager* uniformManager;
 
-// TODO: Make camera orientation follow the traversed path
 // TODO: Add free camera mode
 // TODO: Check other camera usage modes in class I found online
+// TODO: Try and give the complete path a fixed speed by calculating the distance in between points
+// TODO: Make camera orientation follow the traversed path by looking ahead of it
 
 // TODO: Figure out a way to load the correct textures for the correct objects
 // TODO: Take over material properties from mtl file?
@@ -111,15 +113,20 @@ void render(void){
         }
     }
     Vector3f output;
-    //std::cout << output[0] << " " << output[1] << " " << output[2] << " " << output[3] << std::endl;
     catmullRom(output, coordinates[indexes[0]], coordinates[indexes[1]], coordinates[indexes[2]], coordinates[indexes[3]], lt);
     cameraFrame.setOrigin(output[0],output[1],output[2]);
-
-    //cameraFrame.setOrigin(-1181.0416,605.0f,32.8450f);
-
+    // take the vector to the previous position, invert it and add it to the output
+    Vector3f difference;
+    subtractVectors3(difference, previousPosition, output);
+    scaleVector3(difference, -1.0f);
+    Vector3f nextPosition;
+    addVectors3(nextPosition, output, difference);
+    
+    cameraFrame.lookAt(nextPosition[0],nextPosition[1],nextPosition[2]);
+    // update previous position
+    previousPosition[0] = output[0]; previousPosition[1] = output[1]; previousPosition[2] = output[2];
 
     // setup matrix
-    cameraFrame.lookAt(0.0f,300.0f,0.0f);
     Matrix44f mCamera;
     cameraFrame.getCameraMatrix(mCamera);
     modelViewMatrix.pushMatrix();
