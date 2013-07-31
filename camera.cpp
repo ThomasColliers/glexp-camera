@@ -53,6 +53,8 @@ Vector3f coordinates[] = {
     {98.68172f,554.2002f,164.11856f},
     {956.23224f,209.57523f,39.62775f},
 };
+float* segmentLengths;
+float totalLength; 
 Vector3f previousPosition;
 // texture
 TextureManager textureManager;
@@ -98,6 +100,20 @@ void setupContext(void){
     // setup textures
     const char* textures[] = {"textures/spnza_bricks_a_diff.tga"};
     textureManager.loadTextures(sizeof(textures)/sizeof(char*),textures,GL_TEXTURE_2D,GL_TEXTURE0);
+
+    // calculate bezier lengths
+    int numsegments = sizeof(coordinates) / sizeof(Vector3f);
+    segmentLengths = new float[numsegments];
+    totalLength = 0;
+    for(int i = 0; i < numsegments; i++){
+        int nextindex = i + 1;
+        if(nextindex > numsegments - 1) nextindex = 0;
+        Vector3f a = {coordinates[i][0],coordinates[i][1],coordinates[i][2]};
+        Vector3f b = {coordinates[nextindex][0],coordinates[nextindex][1],coordinates[nextindex][2]};
+        segmentLengths[i] = getDistance(a,b);
+        totalLength += segmentLengths[i];
+    }
+    std::cout << totalLength << std::endl;
 }
 
 void render(void){
