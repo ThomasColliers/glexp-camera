@@ -61,9 +61,9 @@ TextureManager textureManager;
 // uniform locations
 UniformManager* uniformManager;
 
-// TODO: Try and give the complete path a fixed speed by calculating the distance in between points
 // TODO: Make camera orientation follow the traversed path by looking ahead of it to attempt to smooth it out
 
+// TODO: Try and give the complete path a fixed speed by calculating the distance in between points
 // TODO: Take over material properties from mtl file? Load them in
 // TODO: Add free camera mode
 // TODO: Check other camera usage modes in class I found online
@@ -113,14 +113,9 @@ void setupContext(void){
         segmentLengths[i] = getDistance(a,b);
         totalLength += segmentLengths[i];
     }
-    std::cout << totalLength << std::endl;
 }
 
-void render(void){
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-    // setup camera
-    double t = fmod(glfwGetTime(),10.0d)/10.0d;
+void determinePositionOnSpline(double t, Vector3f output){
     int numsegments = sizeof(coordinates) / sizeof(Vector3f);
     // find out which segment we are on the spline
     int segment = numsegments * t;
@@ -136,19 +131,23 @@ void render(void){
             indexes[i] = abs(numsegments-indexes[i]);
         }
     }
-    Vector3f output;
     catmullRom(output, coordinates[indexes[0]], coordinates[indexes[1]], coordinates[indexes[2]], coordinates[indexes[3]], lt);
-    cameraFrame.setOrigin(output[0],output[1],output[2]);
-    // take the vector to the previous position, invert it and add it to the output
-    Vector3f difference;
-    subtractVectors3(difference, previousPosition, output);
-    scaleVector3(difference, -1.0f);
-    Vector3f nextPosition;
-    addVectors3(nextPosition, output, difference);
-    
-    cameraFrame.lookAt(nextPosition[0],nextPosition[1],nextPosition[2]);
-    // update previous position
-    previousPosition[0] = output[0]; previousPosition[1] = output[1]; previousPosition[2] = output[2];
+}
+
+void render(void){
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    // setup camera
+    double t = fmod(glfwGetTime(),10.0d)/10.0d;
+    Vector3f position;
+    determinePositionOnSpline(t, position);
+    cameraFrame.setOrigin(position[0],position[1],position[2]);
+    // look at a position in the future
+    double lookAhead = 0.5d;
+    t = fmod(glfwGetTime()+lookAhead,10.0d)/10.0d;
+    Vector3f orientation;
+    determinePositionOnSpline(t, orientation);
+    cameraFrame.lookAt(orientation[0],orientation[1],orientation[2]);
 
     // setup matrix
     Matrix44f mCamera;
