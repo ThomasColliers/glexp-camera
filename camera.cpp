@@ -40,11 +40,18 @@ vector<Model*>* scene;
 // movement coordinates
 float cameraHeight = 605.0f;
 Vector3f coordinates[] = {
-    {-1181.0f,cameraHeight,32.84f},
+/*    {-1181.0f,cameraHeight,32.84f},
     {-1159.0f,cameraHeight,-394.22f},
     {1086.0f,cameraHeight,-407.35f},
     {1073.0f,cameraHeight,446.36f},
-    {-1159.0f,cameraHeight,406.95f},
+    {-1159.0f,cameraHeight,406.95f},*/
+    {843.63989f,107.76762f,2.26488f},
+    {152.38356f,53.5464f,6.84681f},
+    {-924.83679f,86.78181f,26.37549f},
+    {-970.13684f,172.34787f,-97.64067f},
+    {-326.90875f,530.20837f,156.22194f},
+    {98.68172f,554.2002f,164.11856f},
+    {956.23224f,209.57523f,39.62775f},
 };
 Vector3f previousPosition;
 // texture
@@ -52,13 +59,14 @@ TextureManager textureManager;
 // uniform locations
 UniformManager* uniformManager;
 
+// TODO: Try and give the complete path a fixed speed by calculating the distance in between points
+// TODO: Make camera orientation follow the traversed path by looking ahead of it to attempt to smooth it out
+
+// TODO: Take over material properties from mtl file? Load them in
 // TODO: Add free camera mode
 // TODO: Check other camera usage modes in class I found online
-// TODO: Try and give the complete path a fixed speed by calculating the distance in between points
-// TODO: Make camera orientation follow the traversed path by looking ahead of it
 
-// TODO: Figure out a way to load the correct textures for the correct objects
-// TODO: Take over material properties from mtl file?
+// TODO: z-fighting on the lion?
 
 void setupContext(void){
     // general state
