@@ -62,12 +62,16 @@ TextureManager textureManager;
 UniformManager* uniformManager;
 
 // TODO: Take over material properties from mtl file? Load them in
+// TODO: No texture coordinates for floor and walls?
+// TODO: What to do with objects without a texture?
 
 // TODO: Add free camera mode
 // TODO: Try and give the complete path a fixed speed by calculating the distance in between points
 // TODO: Check other camera usage modes in class I found online
 
 // TODO: z-fighting on the lionhead?
+// TODO: Alpha channel support
+// TODO: Shadows
 
 void setupContext(void){
     // general state
@@ -171,8 +175,8 @@ void render(void){
     for(vector<Model*>::iterator it = scene->begin(); it != scene->end(); ++it) {
         Model* m = *it;
         Material* mat = m->getMaterial();
-        std::cout << mat->getTextureDiffuse() << std::endl; // TODO: this contains junk data because we're using a const char* that gets changed around
-        //glBindTexture(GL_TEXTURE_2D, textureManager.get(mat->getTextureDiffuse()));
+        const char* tex = mat->getTextureDiffuse();
+        if(tex) glBindTexture(GL_TEXTURE_2D, textureManager.get(tex));
         glUniform1f(uniformManager->get("shinyness"),mat->getShininess());
         m->draw();
     }
