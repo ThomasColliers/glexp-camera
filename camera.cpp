@@ -61,14 +61,13 @@ TextureManager textureManager;
 // uniform locations
 UniformManager* uniformManager;
 
-// TODO: Make camera orientation follow the traversed path by looking ahead of it to attempt to smooth it out
-
-// TODO: Try and give the complete path a fixed speed by calculating the distance in between points
 // TODO: Take over material properties from mtl file? Load them in
+
 // TODO: Add free camera mode
+// TODO: Try and give the complete path a fixed speed by calculating the distance in between points
 // TODO: Check other camera usage modes in class I found online
 
-// TODO: z-fighting on the lion?
+// TODO: z-fighting on the lionhead?
 
 void setupContext(void){
     // general state
@@ -94,12 +93,12 @@ void setupContext(void){
     uniformManager = new UniformManager(diffuseShader,sizeof(uniforms)/sizeof(char*),uniforms);
 
     // setup geometry
-    ModelLoader modelLoader;
+    ModelLoader modelLoader(&textureManager);
     scene = modelLoader.loadAll("models/sponza.obj");
 
     // setup textures
-    const char* textures[] = {"textures/spnza_bricks_a_diff.tga"};
-    textureManager.loadTextures(sizeof(textures)/sizeof(char*),textures,GL_TEXTURE_2D,GL_TEXTURE0);
+    /*const char* textures[] = {"textures/spnza_bricks_a_diff.tga"};
+    textureManager.loadTextures(sizeof(textures)/sizeof(char*),textures,GL_TEXTURE_2D,GL_TEXTURE0);*/
 
     // calculate bezier lengths
     int numsegments = sizeof(coordinates) / sizeof(Vector3f);
@@ -157,7 +156,6 @@ void render(void){
 
     // render scene
     glUseProgram(diffuseShader);
-    glBindTexture(GL_TEXTURE_2D, textureManager.get("textures/spnza_bricks_a_diff.tga"));
     glUniformMatrix4fv(uniformManager->get("mvpMatrix"),1,GL_FALSE,transformPipeline.getModelViewProjectionMatrix());
     glUniformMatrix4fv(uniformManager->get("mvMatrix"),1,GL_FALSE,transformPipeline.getModelViewMatrix());
     glUniformMatrix3fv(uniformManager->get("normalMatrix"),1,GL_FALSE,transformPipeline.getNormalMatrix());
@@ -167,12 +165,16 @@ void render(void){
     glUniform4fv(uniformManager->get("ambientColor"),1,ambientColor);
     GLfloat diffuseColor[] = {0.7f, 0.7f, 0.7f, 1.0f};
     glUniform4fv(uniformManager->get("diffuseColor"),1,diffuseColor);
-    GLfloat specularColor[] = {0.8f, 0.8f, 0.8f, 1.0f};
+    GLfloat specularColor[] = {0.2f, 0.2f, 0.2f, 1.0f};
     glUniform4fv(uniformManager->get("specularColor"),1,specularColor);
-    glUniform1f(uniformManager->get("shinyness"),128.0f);
     glUniform1i(uniformManager->get("textureUnit"),0);
     for(vector<Model*>::iterator it = scene->begin(); it != scene->end(); ++it) {
-        (*it)->draw();
+        Model* m = *it;
+        Material* mat = m->getMaterial();
+        std::cout << mat->getTextureDiffuse() << std::endl; // TODO: this contains junk data because we're using a const char* that gets changed around
+        //glBindTexture(GL_TEXTURE_2D, textureManager.get(mat->getTextureDiffuse()));
+        glUniform1f(uniformManager->get("shinyness"),mat->getShininess());
+        m->draw();
     }
 
     modelViewMatrix.popMatrix();
