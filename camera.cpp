@@ -61,7 +61,6 @@ TextureManager textureManager;
 // uniform locations
 UniformManager* uniformManager;
 
-// TODO: Take over material properties from mtl file? Load them in
 // TODO: No texture coordinates for floor and walls?
 // TODO: What to do with objects without a texture?
 
@@ -84,7 +83,7 @@ void setupContext(void){
 
     // transform pipeline
     transformPipeline.setMatrixStacks(modelViewMatrix,projectionMatrix);
-    viewFrustum.setPerspective(35.0f, float(window_w)/float(window_h), 1.0f, 20000.0f);
+    viewFrustum.setPerspective(35.0f, float(window_w)/float(window_h), 1.0f, 5000.0f);
     projectionMatrix.loadMatrix(viewFrustum.getProjectionMatrix());
     modelViewMatrix.loadIdentity();
 
@@ -194,7 +193,7 @@ void resizeCallback(GLFWwindow* window, int width, int height){
     window_w = width;
     window_h = height;
     glViewport(0,0,window_w,window_h);
-    viewFrustum.setPerspective(45.0f, float(window_w)/float(window_h),0.1f,20000.0f);
+    viewFrustum.setPerspective(45.0f, float(window_w)/float(window_h),0.1f,5000.0f);
     projectionMatrix.loadMatrix(viewFrustum.getProjectionMatrix());
 }
 
