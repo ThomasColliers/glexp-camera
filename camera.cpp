@@ -202,6 +202,7 @@ void render(void){
     }
 
     glEnable(GL_BLEND);
+    glDepthMask(GL_FALSE);
     // render transparent objects
     glUseProgram(transparentShader);
     glUniformMatrix4fv(transparentUniformManager->get("mvpMatrix"),1,GL_FALSE,transformPipeline.getModelViewProjectionMatrix());
@@ -226,7 +227,7 @@ void render(void){
         glUniform1f(transparentUniformManager->get("shinyness"),mat->getShininess());
         m->draw();
     }
-
+    glDepthMask(GL_TRUE);
 
     modelViewMatrix.popMatrix();
 }
