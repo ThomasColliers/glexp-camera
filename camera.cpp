@@ -56,21 +56,23 @@ Vector3f coordinates[] = {
 float* segmentLengths;
 float totalLength; 
 Vector3f previousPosition;
+bool cameraMoving;
 // texture
-TextureManager textureManager;
+TextureManager* textureManager;
 // uniform locations
 UniformManager* uniformManager;
 
-// TODO: No texture coordinates for floor and walls?
+// TODO: Alpha channel support (mask)
+// TODO: z-fighting on the lionhead?
 // TODO: What to do with objects without a texture?
+
+// TODO: Bump/normal mapping
+// TODO: Specular mapping
+// TODO: Shadows
 
 // TODO: Add free camera mode
 // TODO: Try and give the complete path a fixed speed by calculating the distance in between points
 // TODO: Check other camera usage modes in class I found online
-
-// TODO: z-fighting on the lionhead?
-// TODO: Alpha channel support
-// TODO: Shadows
 
 void setupContext(void){
     // general state
@@ -78,6 +80,7 @@ void setupContext(void){
     glEnable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_CULL_FACE);
+    glEnable(GL_DITHER);
     //glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
 
@@ -95,13 +98,18 @@ void setupContext(void){
     const char* uniforms[] = {"mvpMatrix","mvMatrix","normalMatrix","lightPosition","ambientColor","diffuseColor","textureUnit","specularColor","shinyness"};
     uniformManager = new UniformManager(diffuseShader,sizeof(uniforms)/sizeof(char*),uniforms);
 
+    // setup texture loader
+    textureManager = new TextureManager();
+
     // setup geometry
-    ModelLoader modelLoader(&textureManager);
+    ModelLoader modelLoader(textureManager);
     scene = modelLoader.loadAll("models/sponza.obj");
 
     // setup textures
     /*const char* textures[] = {"textures/spnza_bricks_a_diff.tga"};
     textureManager.loadTextures(sizeof(textures)/sizeof(char*),textures,GL_TEXTURE_2D,GL_TEXTURE0);*/
+
+    cameraMoving = true;
 
     // calculate bezier lengths
     int numsegments = sizeof(coordinates) / sizeof(Vector3f);
@@ -140,16 +148,18 @@ void render(void){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // setup camera
-    double t = fmod(glfwGetTime(),10.0d)/10.0d;
-    Vector3f position;
-    determinePositionOnSpline(t, position);
-    cameraFrame.setOrigin(position[0],position[1],position[2]);
-    // look at a position in the future
-    double lookAhead = 0.5d;
-    t = fmod(glfwGetTime()+lookAhead,10.0d)/10.0d;
-    Vector3f orientation;
-    determinePositionOnSpline(t, orientation);
-    cameraFrame.lookAt(orientation[0],orientation[1],orientation[2]);
+    if(cameraMoving){
+        double t = fmod(glfwGetTime(),10.0d)/10.0d;
+        Vector3f position;
+        determinePositionOnSpline(t, position);
+        cameraFrame.setOrigin(position[0],position[1],position[2]);
+        // look at a position in the future
+        double lookAhead = 0.5d;
+        t = fmod(glfwGetTime()+lookAhead,10.0d)/10.0d;
+        Vector3f orientation;
+        determinePositionOnSpline(t, orientation);
+        cameraFrame.lookAt(orientation[0],orientation[1],orientation[2]);
+    }
 
     // setup matrix
     Matrix44f mCamera;
@@ -175,7 +185,7 @@ void render(void){
         Model* m = *it;
         Material* mat = m->getMaterial();
         const char* tex = mat->getTextureDiffuse();
-        if(tex) glBindTexture(GL_TEXTURE_2D, textureManager.get(tex));
+        if(tex) glBindTexture(GL_TEXTURE_2D, textureManager->get(tex));
         glUniform1f(uniformManager->get("shinyness"),mat->getShininess());
         m->draw();
     }
@@ -186,6 +196,9 @@ void render(void){
 void keyCallback(GLFWwindow* window, int key, int scancode, int state, int mods){
     if(key == GLFW_KEY_ESCAPE && state == GLFW_RELEASE){
         glfwSetWindowShouldClose(window, true);
+    }
+    if(key == GLFW_KEY_SPACE && state == GLFW_RELEASE){
+        cameraMoving = !cameraMoving;
     }
 }
 
