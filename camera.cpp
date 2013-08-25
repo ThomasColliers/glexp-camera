@@ -28,7 +28,8 @@ GLFWwindow* window;
 int window_w, window_h;
 // shader stuff
 ShaderManager* shaderManager;
-GLuint diffuseShader;
+GLuint opaqueShader;
+GLuint transparentShader;
 // transformation stuff
 Frame cameraFrame;
 Frustum viewFrustum;
@@ -60,19 +61,20 @@ bool cameraMoving;
 // texture
 TextureManager* textureManager;
 // uniform locations
-UniformManager* uniformManager;
+UniformManager* opaqueUniformManager;
+UniformManager* transparentUniformManager;
 
-// TODO: Alpha channel support (mask)
-// TODO: z-fighting on the lionhead?
-// TODO: What to do with objects without a texture?
+// TODO: Objects without a texture?
 
+// TODO: Shadows
 // TODO: Bump/normal mapping
 // TODO: Specular mapping
-// TODO: Shadows
 
 // TODO: Add free camera mode
 // TODO: Try and give the complete path a fixed speed by calculating the distance in between points
 // TODO: Check other camera usage modes in class I found online
+
+// TODO: z-fighting on the lionhead?
 
 void setupContext(void){
     // general state
@@ -83,6 +85,7 @@ void setupContext(void){
     glEnable(GL_DITHER);
     //glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
+    //glEnable(GL_DEPTH_CLAMP);
 
     // transform pipeline
     transformPipeline.setMatrixStacks(modelViewMatrix,projectionMatrix);
@@ -94,9 +97,14 @@ void setupContext(void){
     const char* searchPath[] = {"./shaders/","/home/ego/projects/personal/gliby/shaders/"};
     shaderManager = new ShaderManager(sizeof(searchPath)/sizeof(char*),searchPath);
     ShaderAttribute attrs[] = {{0,"vVertex"},{2,"vNormal"},{3,"vTexCoord"}};
-    diffuseShader = shaderManager->buildShaderPair("diffuse_specular.vp","diffuse_specular.fp",sizeof(attrs)/sizeof(ShaderAttribute),attrs);
-    const char* uniforms[] = {"mvpMatrix","mvMatrix","normalMatrix","lightPosition","ambientColor","diffuseColor","textureUnit","specularColor","shinyness"};
-    uniformManager = new UniformManager(diffuseShader,sizeof(uniforms)/sizeof(char*),uniforms);
+    // the opaque shader
+    opaqueShader = shaderManager->buildShaderPair("diffuse_specular.vp","diffuse_specular.fp",sizeof(attrs)/sizeof(ShaderAttribute),attrs);
+    const char* opaqueUniforms[] = {"mvpMatrix","mvMatrix","normalMatrix","lightPosition","ambientColor","diffuseColor","textureUnit","specularColor","shinyness"};
+    opaqueUniformManager = new UniformManager(opaqueShader,sizeof(opaqueUniforms)/sizeof(char*),opaqueUniforms);
+    // the transparent shader
+    transparentShader = shaderManager->buildShaderPair("diffuse_specular_transparent.vp","diffuse_specular_transparent.fp",sizeof(attrs)/sizeof(ShaderAttribute),attrs);
+    const char* transparentUniforms[] = {"mvpMatrix","mvMatrix","normalMatrix","lightPosition","ambientColor","diffuseColor","diffuseTextureUnit","transparencyTextureUnit","specularColor","shinyness"};
+    transparentUniformManager = new UniformManager(transparentShader,sizeof(transparentUniforms)/sizeof(char*),transparentUniforms);
 
     // setup texture loader
     textureManager = new TextureManager();
@@ -167,28 +175,58 @@ void render(void){
     modelViewMatrix.pushMatrix();
     modelViewMatrix.multMatrix(mCamera);
 
-    // render scene
-    glUseProgram(diffuseShader);
-    glUniformMatrix4fv(uniformManager->get("mvpMatrix"),1,GL_FALSE,transformPipeline.getModelViewProjectionMatrix());
-    glUniformMatrix4fv(uniformManager->get("mvMatrix"),1,GL_FALSE,transformPipeline.getModelViewMatrix());
-    glUniformMatrix3fv(uniformManager->get("normalMatrix"),1,GL_FALSE,transformPipeline.getNormalMatrix());
+    glDisable(GL_BLEND);
+    // render opaque objects
+    glUseProgram(opaqueShader);
+    glUniformMatrix4fv(opaqueUniformManager->get("mvpMatrix"),1,GL_FALSE,transformPipeline.getModelViewProjectionMatrix());
+    glUniformMatrix4fv(opaqueUniformManager->get("mvMatrix"),1,GL_FALSE,transformPipeline.getModelViewMatrix());
+    glUniformMatrix3fv(opaqueUniformManager->get("normalMatrix"),1,GL_FALSE,transformPipeline.getNormalMatrix());
     GLfloat lightPosition[] = {2.0f,2.0f,2.0f};
-    glUniform3fv(uniformManager->get("lightPosition"),1,lightPosition);
+    glUniform3fv(opaqueUniformManager->get("lightPosition"),1,lightPosition);
     GLfloat ambientColor[] = {0.2f, 0.2f, 0.2f, 1.0f};
-    glUniform4fv(uniformManager->get("ambientColor"),1,ambientColor);
+    glUniform4fv(opaqueUniformManager->get("ambientColor"),1,ambientColor);
     GLfloat diffuseColor[] = {0.7f, 0.7f, 0.7f, 1.0f};
-    glUniform4fv(uniformManager->get("diffuseColor"),1,diffuseColor);
+    glUniform4fv(opaqueUniformManager->get("diffuseColor"),1,diffuseColor);
     GLfloat specularColor[] = {0.2f, 0.2f, 0.2f, 1.0f};
-    glUniform4fv(uniformManager->get("specularColor"),1,specularColor);
-    glUniform1i(uniformManager->get("textureUnit"),0);
+    glUniform4fv(opaqueUniformManager->get("specularColor"),1,specularColor);
+    glUniform1i(opaqueUniformManager->get("textureUnit"),0);
     for(vector<Model*>::iterator it = scene->begin(); it != scene->end(); ++it) {
         Model* m = *it;
         Material* mat = m->getMaterial();
+        if(mat->getTextureOpacity()) continue;
         const char* tex = mat->getTextureDiffuse();
+        glActiveTexture(GL_TEXTURE0);
         if(tex) glBindTexture(GL_TEXTURE_2D, textureManager->get(tex));
-        glUniform1f(uniformManager->get("shinyness"),mat->getShininess());
+        glUniform1f(opaqueUniformManager->get("shinyness"),mat->getShininess());
         m->draw();
     }
+
+    glEnable(GL_BLEND);
+    // render transparent objects
+    glUseProgram(transparentShader);
+    glUniformMatrix4fv(transparentUniformManager->get("mvpMatrix"),1,GL_FALSE,transformPipeline.getModelViewProjectionMatrix());
+    glUniformMatrix4fv(transparentUniformManager->get("mvMatrix"),1,GL_FALSE,transformPipeline.getModelViewMatrix());
+    glUniformMatrix3fv(transparentUniformManager->get("normalMatrix"),1,GL_FALSE,transformPipeline.getNormalMatrix());
+    glUniform3fv(transparentUniformManager->get("lightPosition"),1,lightPosition);
+    glUniform4fv(transparentUniformManager->get("ambientColor"),1,ambientColor);
+    glUniform4fv(transparentUniformManager->get("diffuseColor"),1,diffuseColor);
+    glUniform4fv(transparentUniformManager->get("specularColor"),1,specularColor);
+    glUniform1i(transparentUniformManager->get("diffuseTextureUnit"),0);
+    glUniform1i(transparentUniformManager->get("transparencyTextureUnit"),1);
+    for(vector<Model*>::iterator it = scene->begin(); it != scene->end(); ++it) {
+        Model* m = *it;
+        Material* mat = m->getMaterial();
+        if(!mat->getTextureOpacity()) continue;
+        const char* tex = mat->getTextureDiffuse();
+        glActiveTexture(GL_TEXTURE0);
+        if(tex) glBindTexture(GL_TEXTURE_2D, textureManager->get(tex));
+        glActiveTexture(GL_TEXTURE1);
+        tex = mat->getTextureOpacity();
+        if(tex) glBindTexture(GL_TEXTURE_2D, textureManager->get(tex));
+        glUniform1f(transparentUniformManager->get("shinyness"),mat->getShininess());
+        m->draw();
+    }
+
 
     modelViewMatrix.popMatrix();
 }
